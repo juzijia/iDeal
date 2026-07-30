@@ -417,7 +417,7 @@ def run_digest(dry_run: bool = False) -> dict:
             if not events
             else "试运行，仅打印内容"
             if dry_run
-            else "发送成功"
+            else "青龙通知接口已接受"
             if delivered
             else "发送失败，请查看上方原因"
         )
@@ -636,7 +636,7 @@ def run_watchlist(dry_run: bool = False) -> dict:
             if not events
             else "试运行，仅打印内容"
             if dry_run
-            else "发送成功"
+            else "青龙通知接口已接受"
             if delivered
             else "发送失败，请查看上方原因"
         )

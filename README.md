@@ -11,21 +11,34 @@
 - AI 入选数量不设上限：优秀的全部推送，不优秀的一款也不推。
 - 百炼 Qwen → DeepSeek → Google Gemini 自动回退。
 - AI 结果默认缓存 12 小时；价格或候选信息变化后自动重新评估。
-- 通知发送成功才记录去重，发送失败会在下次任务自动重试。
+- 通知接口返回成功才记录去重，接口失败会在下次任务自动重试。
 - 数据源探针按成功报告时间判断，超过 8 小时才运行。
 - 所有运行数据和用户配置保存在 `/ql/data/db/ideal`，订阅更新不会覆盖。
 - 仅使用 Python 标准库，无需安装第三方依赖。
 
 ## 青龙订阅使用教程
 
-推荐直接使用青龙面板，不需要进入终端：
+先复制下面**整条命令**：
+
+```bash
+ql repo "https://github.com/juzijia/iDeal.git" "^ideal\.py$" "" "ideal_core|config" "main" "py json" "" "true" "true"
+```
+
+推荐直接使用青龙面板：
 
 1. 打开 **订阅管理**，点击 **创建订阅**。
-2. 按下表填写；没有列出的项目保持默认或留空。
-3. 开启 **自动添加任务** 和 **自动删除任务**，点击 **确定**。
-4. 手动运行一次刚创建的 `iDeal` 订阅。拉取完成后，定时任务会自动出现。
+2. 将上面的整条命令粘贴到 **链接** 输入框。青龙会自动识别并填充仓库、
+   分支、白名单、依赖文件和文件后缀。
+3. 手动补充 **名称：`iDeal`**、**定时类型：`crontab`**、
+   **定时规则：`0 3 * * *`**。
+4. 确认 **自动添加任务** 和 **自动删除任务** 已开启，点击 **确定**。
+5. 手动运行一次刚创建的 `iDeal` 订阅。拉取完成后，定时任务会自动出现。
 
-| 青龙项目 | 填写内容 |
+这条命令也可以直接在青龙终端执行，作为面板订阅的备用方式。
+
+自动填充后可按下表复核：
+
+| 青龙项目 | 应显示的内容 |
 |---|---|
 | 名称 | `iDeal` |
 | 类型 | `公开仓库` |
@@ -51,27 +64,23 @@
 `Asia/Shanghai`。
 
 仓库链接本身不能携带青龙的订阅名称或更新定时。任务运行定时由
-`ideal.py` 顶部的 `# cron "15 7-22/3 * * *"` 提供；自动创建后的任务名称可以在
-青龙面板中改成 `iDeal`。
+`ideal.py` 顶部的 `name:` 和 `cron:` 元数据提供。
 
-如果订阅没有自动创建任务，再手动建立：
+从旧版更新后，如果现有任务名称显示为 `str,`、定时显示为随机时间，订阅更新不会自动
+改写已存在的任务。请在 **定时任务** 中直接编辑：
 
 ```text
 名称：iDeal
-命令：task iDeal/ideal.py
+命令：task juzijia_iDeal_main/ideal.py
 定时：15 7-22/3 * * *
 ```
 
-实际目录名以订阅生成的任务为准。请使用青龙生成的 `task .../ideal.py` 命令，不要改成裸
+如果订阅完全没有自动创建任务，也可以使用以上内容手动建立。
+
+请使用青龙生成的 `task .../ideal.py` 命令，不要改成裸
 `python3 /ql/data/scripts/.../ideal.py`，以免绕过青龙任务环境的加载过程。
 开启“自动添加任务”后不需要手动填写启动命令；如果手动创建任务，则不能省略 `task`。
 它是青龙的任务执行入口，会选择 `python3` 运行 `.py`、加载青龙环境并管理日志和任务状态。
-
-终端订阅仅作为备用方式，完整命令如下：
-
-```bash
-ql repo "https://github.com/juzijia/iDeal.git" "^ideal\.py$" "" "ideal_core|config" "main" "py json" "" "true" "true"
-```
 
 ## 必需环境变量
 
@@ -129,6 +138,10 @@ IDEAL_AI_BASE_URL
 
 探针失败时不会更新成功时间，下次定时任务会自动重试。
 
+`source_probe.json` 和 `source_probe.csv` 每次成功探针都会**覆盖写入**，只保留最新一次
+详细报告，不会持续追加。SQLite 数据库会保留来源健康历史，默认清理 90 天以前的记录；
+青龙自身的任务日志保留时间由青龙设置控制。
+
 ## 重复推送
 
 默认：
@@ -171,6 +184,10 @@ Watchlist 仍只提醒新的价格变化。
 不使用第三方短链，避免失效、跟踪和通知渠道屏蔽。优先生成 CN 区 Apple 官方
 精简链接；该 App 不在 CN 区时依次使用 US、TR 中实际核验可用的区服。
 
+日志出现 `bark 推送成功` 和 `青龙通知接口已接受`，表示青龙 `notify.py` 调用 Bark
+服务端成功。iDeal 无法确认手机是否实际弹出通知；如果手机没有收到，请检查 Bark Key、
+App 通知权限、专注模式和设备网络。
+
 ## Watchlist
 
 首次运行后编辑：
@@ -185,28 +202,28 @@ Watchlist 仍只提醒新的价格变化。
 ## 手动命令
 
 ```bash
-# 以下假设订阅目录名为 iDeal；如果青龙生成了其他目录名，请相应替换
+# 当前公开仓库 main 分支的订阅目录名
 
 # 默认统一任务
-task iDeal/ideal.py
+task juzijia_iDeal_main/ideal.py
 
 # 环境自检
-task iDeal/ideal.py -- self-check
+task juzijia_iDeal_main/ideal.py -- self-check
 
 # 只运行优惠精选
-task iDeal/ideal.py -- digest
+task juzijia_iDeal_main/ideal.py -- digest
 
 # 只运行 Watchlist
-task iDeal/ideal.py -- watchlist
+task juzijia_iDeal_main/ideal.py -- watchlist
 
 # 只运行数据源探针
-task iDeal/ideal.py -- probe --rounds 2
+task juzijia_iDeal_main/ideal.py -- probe --rounds 2
 
 # 试运行：打印通知但不发送
-task iDeal/ideal.py -- digest --dry-run
+task juzijia_iDeal_main/ideal.py -- digest --dry-run
 
 # 统一任务并强制探针
-task iDeal/ideal.py -- --force-probe
+task juzijia_iDeal_main/ideal.py -- --force-probe
 ```
 
 ## 目录
