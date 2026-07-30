@@ -6,7 +6,6 @@ from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Iterable
 
 from .ai import AISelector, provider_status
 from .apple import AppleLookup
@@ -147,6 +146,13 @@ def run_digest(dry_run: bool = False) -> dict:
         line("监控区服", "、".join(region.upper() for region in sorted(monitor_regions)))
         line("最低可信度", str(cfg.get("minimum_confidence", "B")).upper())
         line("AI 优质门槛", f"{cfg.get('ai', {}).get('minimum_priority', 8)}/10")
+        repeat_push = bool(cfg.get("repeat_push", False))
+        line(
+            "重复推送",
+            "开启：仍符合条件的精选优惠每轮都推送"
+            if repeat_push
+            else "关闭：成功推送过的同一优惠不再推送",
+        )
         stage(1, 5, "抓取优惠来源")
         source_started = time.perf_counter()
         source_cfg = [
@@ -275,7 +281,7 @@ def run_digest(dry_run: bool = False) -> dict:
             if event is None:
                 filtered["not_deal"] += 1
                 continue
-            if db.was_alerted(event.event_key):
+            if not repeat_push and db.was_alerted(event.event_key):
                 filtered["duplicate"] += 1
                 continue
             events.append(event)
@@ -284,7 +290,12 @@ def run_digest(dry_run: bool = False) -> dict:
         candidate_events = list(events)
         line("分类不符合偏好", filtered["category"])
         line("不是新鲜且可核验的真实降价", filtered["not_deal"])
-        line("已经提醒过", filtered["duplicate"])
+        line(
+            "已经提醒过",
+            f"{filtered['duplicate']}（已跳过）"
+            if not repeat_push
+            else "忽略历史记录，本轮仍符合条件的全部保留",
+        )
         line(
             "交给 AI",
             f"{len({event.app.app_id for event in candidate_events})} 款 App，"

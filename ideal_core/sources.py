@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import html
-import json
 import re
 import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urljoin
 
 from .http import HttpClient
 from .models import Claim
@@ -163,14 +161,10 @@ class SourceManager:
 
     def _fetch(self, cfg: dict[str, Any]) -> tuple[list[Claim], int]:
         source_type = cfg.get("type", "rss")
-        if source_type in {"rss", "appstore_discounts", "freshapps", "appagg"}:
+        if source_type in {"rss", "appstore_discounts", "freshapps"}:
             return self._fetch_rss(cfg)
-        if source_type == "reddit":
-            return self._fetch_reddit(cfg)
         if source_type == "apple_chart":
             return self._fetch_apple_chart(cfg)
-        if source_type == "html_detail_list":
-            return self._fetch_html_detail_list(cfg)
         raise ValueError(f"不支持的源类型: {source_type}")
 
     def _fetch_rss(self, cfg: dict[str, Any]) -> tuple[list[Claim], int]:
@@ -221,47 +215,6 @@ class SourceManager:
             claims.append(claim)
         return claims, eligible_count
 
-    def _fetch_reddit(self, cfg: dict[str, Any]) -> tuple[list[Claim], int]:
-        url = str(cfg.get("url", "https://www.reddit.com/r/AppHookup/new.json"))
-        payload = self.client.get(
-            url,
-            params={"limit": int(cfg.get("max_items", 50)), "raw_json": 1},
-            headers={"Accept": "application/json"},
-        ).json()
-        claims: list[Claim] = []
-        for child in payload.get("data", {}).get("children", []):
-            item = child.get("data", {})
-            title = str(item.get("title", ""))
-            target = str(item.get("url_overridden_by_dest") or item.get("url") or "")
-            selftext = str(item.get("selftext", ""))
-            app_id = extract_app_id(f"{target} {selftext}")
-            if not app_id:
-                continue
-            old_price, new_price, currency = parse_app_price_transition(title)
-            claims.append(
-                Claim(
-                    source=str(cfg["name"]),
-                    source_id=str(item.get("id", target)),
-                    app_id=app_id,
-                    region=str(cfg.get("region", "us")).lower(),
-                    title=title,
-                    url=target,
-                    published_at=parse_datetime(
-                        time.strftime(
-                            "%Y-%m-%dT%H:%M:%SZ",
-                            time.gmtime(float(item.get("created_utc", 0) or 0)),
-                        )
-                    ),
-                    deal_kind=infer_deal_kind(title, old_price, new_price),
-                    old_price=old_price,
-                    new_price=new_price,
-                    currency=currency,
-                    description=selftext[:4000],
-                    raw={"permalink": item.get("permalink", "")},
-                )
-            )
-        return claims, len(payload.get("data", {}).get("children", []))
-
     def _fetch_apple_chart(self, cfg: dict[str, Any]) -> tuple[list[Claim], int]:
         region = str(cfg.get("region", "us")).lower()
         chart = str(cfg.get("chart", "top-paid"))
@@ -288,52 +241,3 @@ class SourceManager:
                 )
             )
         return claims, len(results)
-
-    def _fetch_html_detail_list(
-        self, cfg: dict[str, Any]
-    ) -> tuple[list[Claim], int]:
-        page_url = str(cfg["url"])
-        raw = self.client.get(page_url).text
-        pattern = re.compile(str(cfg.get("detail_url_pattern", r"/apps/")), re.I)
-        links: list[str] = []
-        for href in re.findall(r"""href\s*=\s*["']([^"']+)""", raw, flags=re.I):
-            link = urljoin(page_url, html.unescape(href))
-            if pattern.search(link) and link not in links:
-                links.append(link)
-        links = links[: int(cfg.get("resolve_detail_limit", 15))]
-
-        def resolve(link: str) -> Claim | None:
-            try:
-                detail = self.client.get(link).text
-            except Exception:
-                return None
-            app_id = extract_app_id(detail)
-            if not app_id:
-                return None
-            title_match = re.search(r"<title[^>]*>(.*?)</title>", detail, flags=re.I | re.S)
-            title = html.unescape(re.sub(r"<[^>]+>", "", title_match.group(1))).strip() if title_match else f"App {app_id}"
-            old_price, new_price, currency = parse_app_price_transition(detail)
-            deal_kind = infer_deal_kind(detail, old_price, new_price)
-            if deal_kind == "discovery":
-                deal_kind = str(cfg.get("static_deal_kind", "discovery"))
-            return Claim(
-                source=str(cfg["name"]),
-                source_id=link,
-                app_id=app_id,
-                region=str(cfg.get("region", "us")).lower(),
-                title=title,
-                url=link,
-                deal_kind=deal_kind,
-                old_price=old_price,
-                new_price=new_price,
-                currency=currency,
-                description="HTML 页面发现；价格仍由 Apple Lookup 核验。",
-            )
-
-        claims: list[Claim] = []
-        if links:
-            with ThreadPoolExecutor(max_workers=min(5, len(links))) as pool:
-                for claim in pool.map(resolve, links):
-                    if claim is not None:
-                        claims.append(claim)
-        return claims, len(links)
