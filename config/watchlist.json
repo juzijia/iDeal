@@ -1,0 +1,104 @@
+{
+  "apps": [
+    {
+      "id": "6476057278",
+      "name": "DS_one",
+      "regions": ["us", "cn", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["效率", "买断"]
+    },
+    {
+      "id": "1373567447",
+      "name": "Loon",
+      "regions": ["us", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["代理工具", "买断"]
+    },
+    {
+      "id": "1501532023",
+      "name": "ServerCat",
+      "regions": ["us", "cn", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["服务器工具", "买断"]
+    },
+    {
+      "id": "364738545",
+      "name": "FileBrowser",
+      "regions": ["us", "cn", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["文件管理", "买断"]
+    },
+    {
+      "id": "510282524",
+      "name": "Owlfiles",
+      "regions": ["us", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["文件管理", "买断"]
+    },
+    {
+      "id": "6448362669",
+      "name": "NeoServer",
+      "regions": ["us", "cn", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["服务器", "网络工具"]
+    },
+    {
+      "id": "1442620678",
+      "name": "Surge",
+      "regions": ["us", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["代理工具", "买断"]
+    },
+    {
+      "id": "1616105820",
+      "name": "Egern",
+      "regions": ["us", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["代理工具", "买断"]
+    },
+    {
+      "id": "1116905928",
+      "name": "nPlayer",
+      "regions": ["us", "cn", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["播放器", "买断"]
+    },
+    {
+      "id": "539397400",
+      "name": "nPlayer Plus",
+      "regions": ["us", "cn", "tr"],
+      "enabled": true,
+      "target_prices": {},
+      "notify_on_any_drop": true,
+      "notify_on_free": true,
+      "tags": ["播放器", "买断"]
+    }
+  ]
+}

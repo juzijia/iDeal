@@ -1,0 +1,48 @@
+{
+  "monitor_regions": ["us", "cn", "tr"],
+  "minimum_confidence": "B",
+  "max_claim_age_hours": 72,
+  "ai": {
+    "enabled": true,
+    "provider": "auto",
+    "provider_order": ["qwen", "deepseek", "gemini", "custom"],
+    "minimum_priority": 8,
+    "timeout_seconds": 60,
+    "retries": 1,
+    "cache_ttl_hours": 12,
+    "on_failure": "skip",
+    "preference": "优先真正有长期价值的效率、文件管理、网络、开发、影音处理、学习和专业工具；偏好持续维护、评分可靠、买断制、折扣明显。排除低质量换皮、纯娱乐噪音、订阅诱导、评分很差、用途含糊和折扣过小的应用。"
+  },
+  "apple_lookup_batch_size": 100,
+  "source_workers": 5,
+  "probe_official_sample_size": 5,
+  "retention_days": {
+    "observations": 180,
+    "claims": 30,
+    "health": 90,
+    "alerts": 365
+  },
+  "blocked_primary_genre_ids": ["6014"],
+  "allowed_primary_genre_ids": [
+    "6000",
+    "6001",
+    "6002",
+    "6006",
+    "6007",
+    "6008",
+    "6010",
+    "6011",
+    "6013",
+    "6015",
+    "6017",
+    "6018",
+    "6020",
+    "6026",
+    "6027"
+  ],
+  "http": {
+    "timeout_seconds": 12,
+    "retries": 1,
+    "user_agent": "iDeal"
+  }
+}
