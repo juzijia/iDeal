@@ -6,7 +6,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .apple import AppleLookup
-from .config import DB_PATH, REPORT_DIR, ensure_dirs, load_json, settings
+from .config import (
+    ConfigurationError,
+    DB_PATH,
+    REPORT_DIR,
+    ensure_dirs,
+    load_json,
+    settings,
+)
 from .console import banner, item, line, stage, summary
 from .db import Database
 from .http import HttpClient
@@ -30,10 +37,22 @@ def run_probe(rounds: int = 2, output_dir: Path | None = None) -> dict:
     ensure_dirs()
     cfg = settings()
     banner("数据源健康体检")
+    source_document = load_json("sources.json")
+    if not isinstance(source_document, dict):
+        raise ConfigurationError("sources.json 顶层必须是 JSON 对象")
+    sources = source_document.get("sources")
+    if not isinstance(sources, list) or any(
+        not isinstance(source, dict) for source in sources
+    ):
+        raise ConfigurationError("sources.json 的 sources 必须是对象数组")
     source_configs = [
-        x for x in load_json("sources.json", {}).get("sources", [])
+        x for x in sources
         if x.get("enabled", True)
     ]
+    if not source_configs:
+        raise ConfigurationError(
+            "sources.json 没有已启用的数据源，探针不会生成空的成功报告"
+        )
     db = Database(DB_PATH)
     db.init()
     run_id = db.start_run("probe")

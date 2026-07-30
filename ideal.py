@@ -20,6 +20,7 @@ from ideal_core.ai import provider_status
 from ideal_core.config import (
     BUNDLED_CONFIG_DIR,
     CONFIG_DIR,
+    ConfigurationError,
     DATA_DIR,
     DB_PATH,
     REPORT_DIR,
@@ -42,9 +43,11 @@ def _probe_max_age_hours() -> float:
     try:
         value = float(raw)
     except ValueError as exc:
-        raise ValueError("IDEAL_PROBE_MAX_AGE_HOURS 必须是正数") from exc
+        raise ConfigurationError(
+            "IDEAL_PROBE_MAX_AGE_HOURS 必须是正数"
+        ) from exc
     if value <= 0:
-        raise ValueError("IDEAL_PROBE_MAX_AGE_HOURS 必须大于 0")
+        raise ConfigurationError("IDEAL_PROBE_MAX_AGE_HOURS 必须大于 0")
     return value
 
 
@@ -59,6 +62,9 @@ def probe_status(max_age_hours: float | None = None) -> tuple[bool, str]:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError) as exc:
         return True, f"报告无法读取：{type(exc).__name__}"
+    rows = payload.get("rows")
+    if not isinstance(rows, list) or not rows:
+        return True, "报告没有任何来源结果，视为无效报告"
     generated_at = str(payload.get("generated_at", "")).strip()
     if not generated_at:
         return True, "报告缺少 generated_at"
@@ -146,8 +152,8 @@ def run_self_check(require_ai: bool = False) -> int:
     stage(1, 4, "项目、配置与数据目录")
     try:
         ensure_dirs()
-    except OSError as exc:
-        problems.append(f"无法准备数据目录：{exc}")
+    except (OSError, ConfigurationError) as exc:
+        problems.append(f"无法准备运行目录：{exc}")
     required = [
         ROOT / "ideal.py",
         ROOT / "ideal_core" / "__init__.py",
@@ -175,8 +181,8 @@ def run_self_check(require_ai: bool = False) -> int:
     )
     problems.extend(syntax_errors)
     line("内置配置", BUNDLED_CONFIG_DIR)
-    line("运行配置", CONFIG_DIR)
-    line("数据目录", DATA_DIR)
+    line("用户配置目录", f"{CONFIG_DIR}（订阅更新不会覆盖）")
+    line("持久化数据目录", f"{DATA_DIR}（数据库、缓存、去重记录与报告）")
     line("数据库", DB_PATH)
     line("Python", sys.version.split()[0])
 
@@ -294,16 +300,27 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     rounds = max(1, args.rounds)
-    if args.mode == "auto":
-        return run_auto(args.dry_run, rounds, args.force_probe)
-    if args.mode == "digest":
-        run_digest(dry_run=args.dry_run)
-    elif args.mode == "watchlist":
-        run_watchlist(dry_run=args.dry_run)
-    elif args.mode == "probe":
-        run_probe(rounds=rounds)
-    else:
-        return run_self_check(require_ai=args.require_ai)
+    try:
+        if args.mode == "auto":
+            return run_auto(args.dry_run, rounds, args.force_probe)
+        if args.mode == "digest":
+            run_digest(dry_run=args.dry_run)
+        elif args.mode == "watchlist":
+            run_watchlist(dry_run=args.dry_run)
+        elif args.mode == "probe":
+            run_probe(rounds=rounds)
+        else:
+            return run_self_check(require_ai=args.require_ai)
+    except ConfigurationError as exc:
+        banner("启动失败")
+        summary(
+            "配置错误",
+            [
+                ("原因", str(exc)),
+                ("处理", "修正配置或重新运行青龙订阅后再执行任务"),
+            ],
+        )
+        return 2
     return 0
 
 

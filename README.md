@@ -16,25 +16,32 @@
 - 所有运行数据和用户配置保存在 `/ql/data/db/ideal`，订阅更新不会覆盖。
 - 仅使用 Python 标准库，无需安装第三方依赖。
 
-## 青龙一键订阅
+## 青龙订阅使用教程
 
-在青龙终端执行：
+推荐直接使用青龙面板，不需要进入终端：
 
-```bash
-ql repo "https://github.com/juzijia/iDeal.git" "^ideal\.py$" "" "ideal_core|config" "main"
-```
+1. 打开 **订阅管理**，点击 **创建订阅**。
+2. 按下表填写；没有列出的项目保持默认或留空。
+3. 开启 **自动添加任务** 和 **自动删除任务**，点击 **确定**。
+4. 手动运行一次刚创建的 `iDeal` 订阅。拉取完成后，定时任务会自动出现。
 
-订阅参数：
-
-| 项目 | 值 |
+| 青龙项目 | 填写内容 |
 |---|---|
-| 仓库 | `https://github.com/juzijia/iDeal.git` |
+| 名称 | `iDeal` |
+| 类型 | `公开仓库` |
+| 链接 | `https://github.com/juzijia/iDeal.git` |
+| 定时类型 | `crontab` |
+| 定时规则（订阅更新） | `0 3 * * *` |
 | 分支 | `main` |
 | 白名单 | `^ideal\.py$` |
+| 黑名单 | 留空 |
 | 依赖文件 | `ideal_core\|config` |
-| 文件后缀 | `py` |
+| 文件后缀 | `py json` |
 
-入口文件内置青龙定时：
+> **必须包含 `json`。** 青龙默认只拉取脚本后缀；缺少 `json` 会导致
+> `settings.json`、`sources.json` 和 `watchlist.json` 没有下载。
+
+`更新定时` 只负责每天检查一次 GitHub 更新，不是 iDeal 的运行时间。iDeal 入口文件已经内置任务定时：
 
 ```cron
 15 7-22/3 * * *
@@ -43,7 +50,11 @@ ql repo "https://github.com/juzijia/iDeal.git" "^ideal\.py$" "" "ideal_core|conf
 每天在 `07:15、10:15、13:15、16:15、19:15、22:15` 运行。请把青龙时区设置为
 `Asia/Shanghai`。
 
-如果订阅没有自动创建任务，请手动建立：
+仓库链接本身不能携带青龙的订阅名称或更新定时。任务运行定时由
+`ideal.py` 顶部的 `# cron "15 7-22/3 * * *"` 提供；自动创建后的任务名称可以在
+青龙面板中改成 `iDeal`。
+
+如果订阅没有自动创建任务，再手动建立：
 
 ```text
 名称：iDeal
@@ -53,6 +64,14 @@ ql repo "https://github.com/juzijia/iDeal.git" "^ideal\.py$" "" "ideal_core|conf
 
 实际目录名以订阅生成的任务为准。请使用青龙生成的 `task .../ideal.py` 命令，不要改成裸
 `python3 /ql/data/scripts/.../ideal.py`，以免绕过青龙任务环境的加载过程。
+开启“自动添加任务”后不需要手动填写启动命令；如果手动创建任务，则不能省略 `task`。
+它是青龙的任务执行入口，会选择 `python3` 运行 `.py`、加载青龙环境并管理日志和任务状态。
+
+终端订阅仅作为备用方式，完整命令如下：
+
+```bash
+ql repo "https://github.com/juzijia/iDeal.git" "^ideal\.py$" "" "ideal_core|config" "main" "py json" "" "true" "true"
+```
 
 ## 必需环境变量
 
@@ -70,11 +89,16 @@ ql repo "https://github.com/juzijia/iDeal.git" "^ideal\.py$" "" "ideal_core|conf
 |---|---:|---|
 | `IDEAL_REPEAT_PUSH` | `0` | `0`：同一优惠成功推送一次；`1`：每轮推送所有仍符合条件的精选优惠 |
 | `IDEAL_MONITOR_REGIONS` | `cn,tr,us` | 监控区服，英文逗号分隔 |
-| `IDEAL_PROBE_MAX_AGE_HOURS` | `8` | 成功探针报告的最大年龄 |
+| `IDEAL_PROBE_MAX_AGE_HOURS` | `8` | 探针最大间隔时长，单位：小时 |
 | `IDEAL_AI_PROVIDER` | `auto` | `auto`、`qwen`、`deepseek`、`gemini` 或 `custom` |
 | `IDEAL_AI_PROVIDER_ORDER` | `qwen,deepseek,gemini,custom` | 自动模式调用顺序 |
-| `IDEAL_DATA_DIR` | `/ql/data/db/ideal` | 数据目录 |
-| `IDEAL_CONFIG_DIR` | `/ql/data/db/ideal/config` | 运行配置目录 |
+
+高级目录变量通常不需要设置：
+
+| 变量 | 默认值 | 用途 |
+|---|---|---|
+| `IDEAL_DATA_DIR` | `/ql/data/db/ideal` | 持久化保存数据库、价格历史、AI 缓存、通知去重记录和探针报告 |
+| `IDEAL_CONFIG_DIR` | `/ql/data/db/ideal/config` | 保存实际生效的 `settings.json`、`sources.json`、`watchlist.json`，避免订阅更新覆盖用户修改 |
 
 模型名和接口地址也可分别通过 `QWEN_MODEL`、`QWEN_BASE_URL`、
 `DEEPSEEK_MODEL`、`DEEPSEEK_BASE_URL`、`GEMINI_MODEL`、
@@ -101,7 +125,7 @@ IDEAL_AI_BASE_URL
 5. 发送美化通知。
 6. 检查 `/ql/data/db/ideal/reports/source_probe.json` 的
    `generated_at`。
-7. 报告缺失、损坏、时间异常或年龄达到 8 小时时运行探针。
+7. 报告缺失、损坏、没有任何来源结果、时间异常，或距上次成功探针达到 8 小时时运行探针。
 
 探针失败时不会更新成功时间，下次定时任务会自动重试。
 
