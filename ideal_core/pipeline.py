@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from .ai import AISelector, provider_status
 from .apple import AppleLookup
-from .config import DB_PATH, ensure_dirs, load_json, settings
+from .config import ConfigurationError, DB_PATH, ensure_dirs, load_json, settings
 from .console import banner, item, line, provider_name, stage, summary
 from .db import Database
 from .http import HttpClient
@@ -155,12 +155,27 @@ def run_digest(dry_run: bool = False) -> dict:
         )
         stage(1, 5, "抓取优惠来源")
         source_started = time.perf_counter()
+        source_document = load_json("sources.json")
+        if not isinstance(source_document, dict):
+            raise ConfigurationError("sources.json 顶层必须是 JSON 对象")
+        sources = source_document.get("sources")
+        if not isinstance(sources, list) or any(
+            not isinstance(source, dict) for source in sources
+        ):
+            raise ConfigurationError("sources.json 的 sources 必须是对象数组")
         source_cfg = [
             source
-            for source in load_json("sources.json", {}).get("sources", [])
-            if not source.get("region")
-            or str(source.get("region")).lower() in monitor_regions
+            for source in sources
+            if source.get("enabled", True)
+            and (
+                not source.get("region")
+                or str(source.get("region")).lower() in monitor_regions
+            )
         ]
+        if not source_cfg:
+            raise ConfigurationError(
+                "sources.json 没有与当前监控区服匹配的已启用数据源"
+            )
         effective_cfg = dict(cfg)
         effective_cfg["_source_max_age"] = {
             str(source.get("name")): int(
@@ -461,8 +476,16 @@ def run_watchlist(dry_run: bool = False) -> dict:
     try:
         stage(1, 3, "读取监控清单并查询 Apple")
         apple_started = time.perf_counter()
+        watchlist_document = load_json("watchlist.json")
+        if not isinstance(watchlist_document, dict):
+            raise ConfigurationError("watchlist.json 顶层必须是 JSON 对象")
+        watchlist_apps = watchlist_document.get("apps")
+        if not isinstance(watchlist_apps, list) or any(
+            not isinstance(app, dict) for app in watchlist_apps
+        ):
+            raise ConfigurationError("watchlist.json 的 apps 必须是对象数组")
         apps_cfg = [
-            x for x in load_json("watchlist.json", {}).get("apps", [])
+            x for x in watchlist_apps
             if x.get("enabled", True) and str(x.get("id", "")).strip()
         ]
         plan: dict[str, list[str]] = defaultdict(list)
