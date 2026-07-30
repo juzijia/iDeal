@@ -36,7 +36,26 @@ FAILURE_MARKERS = (
 def _format_price(value: Decimal, currency: str) -> str:
     if value == 0:
         return "免费"
-    return f"{format(value.normalize(), 'f')} {currency}".strip()
+    symbols = {
+        "CNY": "¥",
+        "RMB": "¥",
+        "USD": "$",
+        "TRY": "₺",
+        "EUR": "€",
+        "GBP": "£",
+    }
+    amount = format(value.normalize(), "f")
+    symbol = symbols.get(currency.upper(), "")
+    return f"{symbol}{amount}" if symbol else f"{amount} {currency}".strip()
+
+
+def _index_badge(index: int) -> str:
+    badges = ("1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟")
+    return badges[index - 1] if 1 <= index <= len(badges) else f"{index}."
+
+
+def _app_store_url(app_id: str, region: str) -> str:
+    return f"https://apps.apple.com/{region.lower()}/app/id{app_id}"
 
 
 def load_qinglong_sender() -> Callable[[str, str], object] | None:
@@ -60,8 +79,6 @@ def load_qinglong_sender() -> Callable[[str, str], object] | None:
 
 
 def render_events(events: list[DealEvent], consumer: str) -> tuple[str, str]:
-    label = "Watchlist 价格提醒" if consumer == "watchlist" else "iOS 优惠精选"
-    title = f"📱 {datetime.now():%Y-%m-%d} {label}"
     grouped: dict[str, list[DealEvent]] = defaultdict(list)
     for event in events:
         grouped[event.app.app_id].append(event)
@@ -71,6 +88,12 @@ def render_events(events: list[DealEvent], consumer: str) -> tuple[str, str]:
         key=lambda group: max(event.score for event in group),
         reverse=True,
     )
+    now = datetime.now().astimezone()
+    if consumer == "watchlist":
+        title = f"🔔 iDeal｜{len(ordered_groups)} 款自选 App 提醒"
+    else:
+        title = f"🎯 iDeal｜{len(ordered_groups)} 款优质优惠"
+    regions = sorted({event.app.region.upper() for event in events})
     for index, group in enumerate(ordered_groups, 1):
         reference = max(
             group, key=lambda event: (event.app.rating_count, event.app.rating)
@@ -81,54 +104,61 @@ def render_events(events: list[DealEvent], consumer: str) -> tuple[str, str]:
                 claim.source for event in group for claim in event.evidence
             )
         ) or "本地价格历史"
-        tags = list(
-            dict.fromkeys(
-                [
-                    *(event.alert_type for event in group),
-                    *(f"可信度 {event.confidence}" for event in group),
-                    *(tag for event in group for tag in event.tags),
-                ]
-            )
-        )
-        if any(event.selection_reason for event in group):
-            tags.append("AI 精选")
-        if any(event.historical_low for event in group):
-            tags.append("历史低价")
-        ratings = " / ".join(
-            f"{event.app.region.upper()} "
-            + (
-                f"{event.app.rating:.1f}({event.app.rating_count})"
-                if event.app.rating_count
-                else "暂无"
-            )
-            for event in sorted(group, key=lambda item: item.app.region)
-        )
         rating = f"{app.rating:.1f}（{app.rating_count}）" if app.rating_count else "暂无"
-        lines = [
-            f"{index:02d}. {app.title}",
-            f"├ 标签：{'｜'.join(dict.fromkeys(tags))}",
-            "├ 区服价格：",
+        label_parts: list[str] = []
+        if any(event.historical_low for event in group):
+            label_parts.append("🏆 历史低价")
+        if any(event.new_price == 0 for event in group):
+            label_parts.append("🎁 限免")
+        else:
+            label_parts.append("📉 " + "/".join(dict.fromkeys(event.alert_type for event in group)))
+        priority = max((event.selection_priority for event in group), default=0)
+        if priority:
+            label_parts.append(f"🤖 AI {priority}/10")
+        label_parts.append(
+            "可信度 " + max((event.confidence for event in group), default="B")
+        )
+        price_parts = [
+            f"{event.app.region.upper()} "
+            f"{_format_price(event.old_price, event.app.currency)}→"
+            f"{_format_price(event.new_price, event.app.currency)}"
+            for event in sorted(group, key=lambda item: item.app.region)
         ]
-        for event in sorted(group, key=lambda item: item.app.region):
-            lines.append(
-                f"│  {event.app.region.upper()}："
-                f"{_format_price(event.old_price, event.app.currency)} → "
-                f"{_format_price(event.new_price, event.app.currency)}"
-            )
-        lines.extend([
-            f"├ 分类：{app.primary_genre_name or '未知'}｜评分：{ratings or rating}",
-            f"├ 开发者：{app.seller or '未知'}｜版本：{app.version or '未知'}",
-            f"├ 系统要求：iOS {app.minimum_os or '未知'}｜更新：{app.updated_at[:10] or '未知'}",
-            f"├ 证据：{sources}",
-        ])
+        extra_tags = list(dict.fromkeys(tag for event in group for tag in event.tags))
+        meta_parts = [app.primary_genre_name or "未知分类"]
+        if extra_tags:
+            meta_parts.extend(extra_tags)
+        lines = [
+            f"{_index_badge(index)} {app.title}",
+            "｜".join(label_parts),
+            f"💰 {'｜'.join(price_parts)}",
+            f"⭐ {rating}｜{'｜'.join(meta_parts)}",
+        ]
         reason = next(
             (event.selection_reason for event in group if event.selection_reason), ""
         )
         if reason:
-            lines.append(f"├ AI 理由：{reason}")
-        lines.append(f"└ 链接：{app.url}")
+            lines.append(f"💡 {reason}")
+        link_region = next(
+            (
+                region
+                for region in ("cn", "us", "tr")
+                if any(event.app.region.lower() == region for event in group)
+            ),
+            reference.app.region,
+        )
+        lines.extend(
+            [
+                f"🔍 Apple 已核验｜来源：{sources}",
+                f"📲 {link_region.upper()} App Store｜"
+                f"{_app_store_url(app.app_id, link_region)}",
+            ]
+        )
         blocks.append("\n".join(lines))
-    header = f"共 {len(ordered_groups)} 款，涉及 {len(events)} 个区服"
+    header = (
+        f"🕒 {now:%m-%d %H:%M}｜{' · '.join(regions)}\n"
+        f"🔎 共 {len(ordered_groups)} 款，涉及 {len(events)} 个区服"
+    )
     return title, header + "\n\n" + "\n\n".join(blocks)
 
 

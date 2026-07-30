@@ -51,18 +51,9 @@ def _normalize_provider(value: str) -> str:
 
 def _available_providers() -> dict[str, AIProvider]:
     available: dict[str, AIProvider] = {}
-    custom_key = (
-        os.environ.get("IDEAL_AI_API_KEY", "").strip()
-        or os.environ.get("IOS_DEALS_AI_API_KEY", "").strip()
-    )
-    custom_url = (
-        os.environ.get("IDEAL_AI_BASE_URL", "").strip()
-        or os.environ.get("IOS_DEALS_AI_BASE_URL", "").strip()
-    )
-    custom_model = (
-        os.environ.get("IDEAL_AI_MODEL", "").strip()
-        or os.environ.get("IOS_DEALS_AI_MODEL", "").strip()
-    )
+    custom_key = os.environ.get("IDEAL_AI_API_KEY", "").strip()
+    custom_url = os.environ.get("IDEAL_AI_BASE_URL", "").strip()
+    custom_model = os.environ.get("IDEAL_AI_MODEL", "").strip()
     if custom_key and custom_url and custom_model:
         available["custom"] = AIProvider(
             "custom", custom_key, custom_model, _chat_endpoint(custom_url)
@@ -118,7 +109,6 @@ def _available_providers() -> dict[str, AIProvider]:
 def _provider_mode(ai_cfg: dict[str, Any]) -> str:
     return _normalize_provider(
         os.environ.get("IDEAL_AI_PROVIDER", "").strip()
-        or os.environ.get("IOS_DEALS_AI_PROVIDER", "").strip()
         or str(ai_cfg.get("provider", "auto")).strip()
     )
 
@@ -301,6 +291,7 @@ def _apply_selection(
         _, events, _ = groups[choice["index"] - 1]
         for event in events:
             event.selection_reason = choice["reason"]
+            event.selection_priority = choice["priority"]
             event.score += choice["priority"] * 10
         output.extend(sorted(events, key=lambda x: x.app.region))
     return output

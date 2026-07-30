@@ -1,20 +1,6 @@
 {
   "sources": [
     {
-      "name": "appstore-discounts-us",
-      "type": "appstore_discounts",
-      "url": "https://fastly.jsdelivr.net/gh/appstore-discounts/appstore-discounts@main/rss/us.xml",
-      "urls": [
-        "https://fastly.jsdelivr.net/gh/appstore-discounts/appstore-discounts@main/rss/us.xml",
-        "https://cdn.jsdelivr.net/gh/appstore-discounts/appstore-discounts@main/rss/us.xml",
-        "https://raw.githubusercontent.com/appstore-discounts/appstore-discounts/main/rss/us.xml"
-      ],
-      "region": "us",
-      "enabled": true,
-      "max_items": 100,
-      "max_age_hours": 96
-    },
-    {
       "name": "appstore-discounts-cn",
       "type": "appstore_discounts",
       "url": "https://fastly.jsdelivr.net/gh/appstore-discounts/appstore-discounts@main/rss/cn.xml",
@@ -43,6 +29,20 @@
       "max_age_hours": 96
     },
     {
+      "name": "appstore-discounts-us",
+      "type": "appstore_discounts",
+      "url": "https://fastly.jsdelivr.net/gh/appstore-discounts/appstore-discounts@main/rss/us.xml",
+      "urls": [
+        "https://fastly.jsdelivr.net/gh/appstore-discounts/appstore-discounts@main/rss/us.xml",
+        "https://cdn.jsdelivr.net/gh/appstore-discounts/appstore-discounts@main/rss/us.xml",
+        "https://raw.githubusercontent.com/appstore-discounts/appstore-discounts/main/rss/us.xml"
+      ],
+      "region": "us",
+      "enabled": true,
+      "max_items": 100,
+      "max_age_hours": 96
+    },
+    {
       "name": "freshapps-free-us",
       "type": "freshapps",
       "url": "https://freshapps.com/rss/free.xml",
@@ -63,53 +63,6 @@
       "max_age_hours": 72
     },
     {
-      "name": "appagg-sale-ios-us",
-      "type": "appagg",
-      "url": "https://appagg.com/rss/sale/ios/?hl=en",
-      "region": "us",
-      "enabled": false,
-      "max_items": 40,
-      "resolve_detail_limit": 20,
-      "max_age_hours": 72
-    },
-    {
-      "name": "reddit-apphookup-us",
-      "type": "reddit",
-      "url": "https://www.reddit.com/r/AppHookup/new.json",
-      "region": "us",
-      "enabled": false,
-      "max_items": 50,
-      "max_age_hours": 48
-    },
-    {
-      "name": "appdovo-gone-free-us",
-      "type": "html_detail_list",
-      "url": "https://appdovo.com/apps-gone-free-today/",
-      "region": "us",
-      "enabled": false,
-      "detail_url_pattern": "appdovo\\.com/apps/",
-      "resolve_detail_limit": 15,
-      "static_deal_kind": "free_hint"
-    },
-    {
-      "name": "appshunter-sales-us",
-      "type": "html_detail_list",
-      "url": "https://appshunter.io/sales/apps",
-      "region": "us",
-      "enabled": false,
-      "detail_url_pattern": "appshunter\\.io/app/",
-      "resolve_detail_limit": 15,
-      "static_deal_kind": "discount_hint"
-    },
-    {
-      "name": "apple-top-paid-us",
-      "type": "apple_chart",
-      "region": "us",
-      "chart": "top-paid",
-      "limit": 100,
-      "enabled": true
-    },
-    {
       "name": "apple-top-paid-cn",
       "type": "apple_chart",
       "region": "cn",
@@ -126,36 +79,12 @@
       "enabled": true
     },
     {
-      "name": "appstore-discounts-hk",
-      "type": "appstore_discounts",
-      "url": "https://raw.githubusercontent.com/appstore-discounts/appstore-discounts/main/rss/hk.xml",
-      "region": "hk",
-      "enabled": false,
-      "max_items": 100
-    },
-    {
-      "name": "appstore-discounts-tw",
-      "type": "appstore_discounts",
-      "url": "https://raw.githubusercontent.com/appstore-discounts/appstore-discounts/main/rss/tw.xml",
-      "region": "tw",
-      "enabled": false,
-      "max_items": 100
-    },
-    {
-      "name": "appstore-discounts-mo",
-      "type": "appstore_discounts",
-      "url": "https://raw.githubusercontent.com/appstore-discounts/appstore-discounts/main/rss/mo.xml",
-      "region": "mo",
-      "enabled": false,
-      "max_items": 100
-    },
-    {
-      "name": "appstore-discounts-pt",
-      "type": "appstore_discounts",
-      "url": "https://raw.githubusercontent.com/appstore-discounts/appstore-discounts/main/rss/pt.xml",
-      "region": "pt",
-      "enabled": false,
-      "max_items": 100
+      "name": "apple-top-paid-us",
+      "type": "apple_chart",
+      "region": "us",
+      "chart": "top-paid",
+      "limit": 100,
+      "enabled": true
     }
   ]
 }

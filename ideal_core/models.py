@@ -110,3 +110,4 @@ class DealEvent:
     historical_low: bool = False
     tags: list[str] = field(default_factory=list)
     selection_reason: str = ""
+    selection_priority: int = 0

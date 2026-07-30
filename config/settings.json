@@ -1,5 +1,5 @@
 {
-  "monitor_regions": ["us", "cn", "tr"],
+  "monitor_regions": ["cn", "tr", "us"],
   "minimum_confidence": "B",
   "max_claim_age_hours": 72,
   "ai": {
