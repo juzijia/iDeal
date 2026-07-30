@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# cron "15 7-22/3 * * *"
+# name: iDeal
+# cron: 15 7-22/3 * * *
 from __future__ import annotations
 
 import argparse
@@ -252,7 +253,7 @@ def run_self_check(require_ai: bool = False) -> int:
         warnings.append("青龙环境中未找到 notify.py")
 
     stage(4, 4, "青龙任务")
-    line("建议命令", "task <订阅目录>/ideal.py（例如 task iDeal/ideal.py）")
+    line("建议命令", "task juzijia_iDeal_main/ideal.py")
     line("建议定时", "15 7-22/3 * * *")
     line("说明", "使用青龙生成的 task 命令，以便加载面板中的环境变量")
     try:

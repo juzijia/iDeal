@@ -236,8 +236,13 @@ def send_events(events: list[DealEvent], consumer: str, dry_run: bool = False) -
         print(f"\n{title}\n{body}\n")
         return False
     chunks = _split_message(body)
+    print(
+        f"  [发送] {title}｜{len(events)} 个区服提醒｜"
+        f"{len(chunks)} 段消息"
+    )
     for index, chunk in enumerate(chunks, 1):
         chunk_title = title if len(chunks) == 1 else f"{title} [{index}/{len(chunks)}]"
         if not _call_sender(sender, chunk_title, chunk):
             return False
+    print(f"  [正常] 青龙通知接口已接受：{title}")
     return True
