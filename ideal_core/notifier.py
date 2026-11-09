@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import io
 import sys
 from collections import defaultdict
-from contextlib import redirect_stderr, redirect_stdout
+from collections.abc import Callable
+from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Callable
 
 from .models import DealEvent
 
@@ -22,6 +23,7 @@ FAILURE_MARKERS = (
     "未提供任何",
     "无可用推送",
     "无可用通知",
+    "无推送渠道",
     "failed",
     "failure",
     "error",
@@ -30,6 +32,11 @@ FAILURE_MARKERS = (
     "no notification channel",
     "no notifier configured",
     "invalid",
+)
+
+QINGLONG_SUCCESS_LINES = (
+    "bark 推送成功！",
+    "tg 推送成功！",
 )
 
 
@@ -66,15 +73,20 @@ def load_qinglong_sender() -> Callable[[str, str], object] | None:
         if str(scripts_dir) not in sys.path:
             sys.path.insert(0, str(scripts_dir))
         try:
-            from notify import send
-
+            notify_module = importlib.import_module("notify")
+            send = notify_module.send
+            with suppress(Exception):
+                send._is_qinglong_sender = True
             return send
         except Exception:
             spec = importlib.util.spec_from_file_location("ql_notify", notify_path)
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                return module.send
+                send = module.send
+                with suppress(Exception):
+                    send._is_qinglong_sender = True
+                return send
     return None
 
 
@@ -190,13 +202,19 @@ def _split_message(body: str, limit: int = 3500) -> list[str]:
     return chunks
 
 
-def _sender_reported_failure(result: object, output: str) -> bool:
+def _is_explicit_failure(result: object) -> bool:
     if result is False:
         return True
     if isinstance(result, dict):
         for key in ("success", "ok"):
             if key in result and not bool(result[key]):
                 return True
+    return False
+
+
+def _sender_reported_failure(result: object, output: str) -> bool:
+    if _is_explicit_failure(result):
+        return True
     normalized = output.casefold()
     return any(marker in normalized for marker in FAILURE_MARKERS)
 
@@ -215,8 +233,49 @@ def _call_sender(sender: Callable[[str, str], object], title: str, body: str) ->
     output = captured.getvalue()
     if output:
         print(output, end="" if output.endswith("\n") else "\n")
+
+    is_ql = bool(getattr(sender, "_is_qinglong_sender", False))
+    if is_ql:
+        if _is_explicit_failure(result):
+            print("  ! notify.py 报告发送失败，本次不写入已提醒记录；下次定时任务仍符合条件时再尝试")
+            return False
+
+        if result is True or (
+            isinstance(result, dict)
+            and any(result.get(key) is True for key in ("success", "ok"))
+        ):
+            return True
+
+        globals_dict = getattr(sender, "__globals__", {})
+        push_config = globals_dict.get("push_config") if isinstance(globals_dict, dict) else None
+        # Qinglong uses truthiness, so even a non-empty string such as "false"
+        # enables console echo. Do not mistake echoed content for a receipt.
+        console_enabled = bool(push_config.get("CONSOLE")) if isinstance(push_config, dict) else False
+
+        verified_channels: list[str] = []
+        if not console_enabled:
+            raw_lines = [line.strip() for line in output.splitlines()]
+            for marker in QINGLONG_SUCCESS_LINES:
+                if marker in title or marker in body:
+                    continue
+                if marker in raw_lines:
+                    verified_channels.append(marker)
+
+        if verified_channels:
+            normalized = output.casefold()
+            has_failure = any(m in normalized for m in FAILURE_MARKERS)
+            if has_failure or len(verified_channels) < len(QINGLONG_SUCCESS_LINES):
+                print("  [提示] 部分渠道/API已接受")
+            return True
+
+        if console_enabled:
+            print("  ! notify.py 启用了 CONSOLE 输出，无法确认真实渠道送达；本次不写入已提醒记录")
+        else:
+            print("  ! notify.py 未确认任何推送渠道成功，本次不写入已提醒记录；下次定时任务仍符合条件时再尝试")
+        return False
+
     if _sender_reported_failure(result, output):
-        print("  ! notify.py 报告发送失败，本次不写入已提醒记录；下次将自动重试")
+        print("  ! notify.py 报告发送失败，本次不写入已提醒记录；下次定时任务仍符合条件时再尝试")
         return False
     return True
 
