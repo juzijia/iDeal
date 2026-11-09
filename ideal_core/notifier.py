@@ -22,6 +22,7 @@ FAILURE_MARKERS = (
     "未提供任何",
     "无可用推送",
     "无可用通知",
+    "无推送渠道",
     "failed",
     "failure",
     "error",
@@ -31,6 +32,8 @@ FAILURE_MARKERS = (
     "no notifier configured",
     "invalid",
 )
+
+QINGLONG_SUCCESS_LINES = ("bark 推送成功！", "tg 推送成功！")
 
 
 def _format_price(value: Decimal, currency: str) -> str:
@@ -190,13 +193,17 @@ def _split_message(body: str, limit: int = 3500) -> list[str]:
     return chunks
 
 
-def _sender_reported_failure(result: object, output: str) -> bool:
+def _sender_reported_failure(result: object, output: str, message: str = "") -> bool:
     if result is False:
         return True
     if isinstance(result, dict):
         for key in ("success", "ok"):
             if key in result and not bool(result[key]):
                 return True
+    # Accept exact channel receipts, not matching text echoed from the message.
+    output_lines = {line.strip() for line in output.splitlines()}
+    if any(marker in output_lines and marker not in message for marker in QINGLONG_SUCCESS_LINES):
+        return False
     normalized = output.casefold()
     return any(marker in normalized for marker in FAILURE_MARKERS)
 
@@ -215,8 +222,8 @@ def _call_sender(sender: Callable[[str, str], object], title: str, body: str) ->
     output = captured.getvalue()
     if output:
         print(output, end="" if output.endswith("\n") else "\n")
-    if _sender_reported_failure(result, output):
-        print("  ! notify.py 报告发送失败，本次不写入已提醒记录；下次将自动重试")
+    if _sender_reported_failure(result, output, f"{title}\n{body}"):
+        print("  ! notify.py 报告发送失败，本次不写入已提醒记录；下次定时任务仍符合条件时再尝试")
         return False
     return True
 
