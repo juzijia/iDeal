@@ -201,8 +201,8 @@ def _sender_reported_failure(result: object, output: str, message: str = "") -> 
             if key in result and not bool(result[key]):
                 return True
     # Accept exact channel receipts, not matching text echoed from the message.
-    lines = {line.strip() for line in output.splitlines()}
-    if any(marker in lines and marker not in message for marker in QINGLONG_SUCCESS_LINES):
+    output_lines = {line.strip() for line in output.splitlines()}
+    if any(marker in output_lines and marker not in message for marker in QINGLONG_SUCCESS_LINES):
         return False
     normalized = output.casefold()
     return any(marker in normalized for marker in FAILURE_MARKERS)

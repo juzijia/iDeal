@@ -65,16 +65,16 @@ class NotifierTests(unittest.TestCase):
                     self.assertTrue(_call_sender(sender, "Title", "Body"))
 
     def test_all_chunks_required(self) -> None:
-        for results in ((True, True), (True, False), (False, True)):
-            with self.subTest(results=results), redirect_stdout(io.StringIO()), patch(
+        for chunk_results in ((True, True), (True, False), (False, True)):
+            with self.subTest(chunk_results=chunk_results), redirect_stdout(io.StringIO()), patch(
                 "ideal_core.notifier.render_events", return_value=("Title", "Body")
             ), patch(
                 "ideal_core.notifier._split_message", return_value=["one", "two"]
             ), patch(
                 "ideal_core.notifier.load_qinglong_sender", return_value=Mock()
-            ), patch("ideal_core.notifier._call_sender", side_effect=results) as send:
-                self.assertEqual(send_events([Mock()], "digest"), all(results))
-                self.assertEqual(send.call_count, 2 if results[0] else 1)
+            ), patch("ideal_core.notifier._call_sender", side_effect=chunk_results) as send_chunk:
+                self.assertEqual(send_events([Mock()], "digest"), all(chunk_results))
+                self.assertEqual(send_chunk.call_count, 2 if chunk_results[0] else 1)
 
 
 if __name__ == "__main__":
